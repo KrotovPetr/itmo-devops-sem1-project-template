@@ -15,7 +15,7 @@ type Repository struct {
 
 func createDBConnection(cfg config.DBConfig) (*sql.DB, error) {
 	log.Println("Try connect to database...")
-	
+
 	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
 		cfg.Host, cfg.Port, cfg.User, cfg.Password, cfg.Name)
 
