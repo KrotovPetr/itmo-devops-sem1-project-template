@@ -1,9 +1,12 @@
 package main
+
 import (
+	"log"
+
 	"project_sem/internal/app"
 	"project_sem/internal/config"
-	"log"
 )
+
 func main() {
 	cfg, err := config.Load("config.yaml", "yaml")
 	if err != nil {

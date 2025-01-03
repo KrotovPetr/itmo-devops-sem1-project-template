@@ -1,20 +1,21 @@
 #!/bin/bash
 
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-RED='\033[0;31m'
-NC='\033[0m'
+source scripts/constants/colors.sh
+source scripts/constants/path.sh
 
-APP_BIN_PATH="bin/main"
 
 if [ ! -f $APP_BIN_PATH ]; then
-  echo -e "${RED}Приложение не скомпилировано или не найдено по пути $APP_BIN_PATH${NC}"
+  echo -e "${RED}Application not compiled or not found at $APP_BIN_PATH${NC}"
   exit 1
 fi
-echo -e "${YELLOW}Запуск приложения...${NC}"
-./$APP_BIN_PATH &
+
+echo -e "${YELLOW}Starting application...${NC}"
+./$COMPILE_TO &
 if [ $? -ne 0 ]; then
-  echo -e "${RED}Ошибка при запуске приложения${NC}"
+  echo -e "${RED}Error starting application${NC}"
   exit 1
 fi
-echo -e "${GREEN}Приложение запущено${NC}"
+
+echo -e "${GREEN}Application started${NC}"
+
+exit 0

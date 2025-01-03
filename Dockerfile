@@ -1,4 +1,4 @@
-FROM postgres:latest
+FROM postgres:16
 
 ENV POSTGRES_DB=project-sem-1
 ENV POSTGRES_USER=validator
