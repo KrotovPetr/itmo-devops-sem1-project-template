@@ -1,0 +1,5 @@
+export DB_HOST="localhost"
+export DB_PORT="5432"
+export DB_NAME="project-sem-1"
+export DB_USER="validator"
+export DB_PASSWORD="val1dat0r"
