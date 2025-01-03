@@ -2,8 +2,16 @@
 
 source scripts/constants/colors.sh
 
+chmod +x scripts/docker.sh
 chmod +x scripts/prepare.sh
 chmod +x scripts/run.sh
+
+echo "${YELLOW}Starting docker.sh...${NC}"
+./scripts/docker.sh
+if [ $? -ne 0 ]; then
+  echo -e "${RED}Docker setup failed${NC}"
+  exit 1
+fi
 
 echo "${YELLOW}Starting prepare.sh...${NC}"
 ./scripts/prepare.sh
