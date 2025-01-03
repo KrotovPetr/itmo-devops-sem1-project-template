@@ -3,7 +3,7 @@ server:
   read-timeout: 60
   write-timeout: 60
 db:
-  port: 5439
+  port: 5432
   host: "localhost"
   password: "val1dat0r"
   user: "validator"
