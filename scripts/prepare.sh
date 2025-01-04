@@ -7,15 +7,15 @@ source scripts/constants/path.sh
 
 export PGPASSWORD=$DB_PASSWORD
 
-echo -e "${YELLOW}Creating prices table...${NC}"
-psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f migrations/0001_create_prices.sql
+echo -e "Creating prices table..."
+psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f migrations/0001_initial.sql
 if [ $? -ne 0 ]; then
   echo -e "${RED}Error creating prices table${NC}"
   exit 1
 fi
 echo -e "${GREEN}Prices table created successfully${NC}"
 
-echo -e "${YELLOW}Compiling application...${NC}"
+echo -e "Compiling application..."
 go build -o $COMPILE_TO $COMPILE_FROM
 if [ $? -ne 0 ]; then
   echo -e "${RED}Error compiling application${NC}"

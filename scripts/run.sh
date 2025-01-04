@@ -9,7 +9,7 @@ if [ ! -f $APP_BIN_PATH ]; then
   exit 1
 fi
 
-echo -e "${YELLOW}Starting application...${NC}"
+echo -e "Starting application..."
 ./$COMPILE_TO &
 if [ $? -ne 0 ]; then
   echo -e "${RED}Error starting application${NC}"
