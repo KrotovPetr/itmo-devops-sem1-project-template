@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"log"
 	"time"
 
@@ -14,8 +15,8 @@ type ServerConfig struct {
 }
 
 type DBConfig struct {
-	Host     string `yaml:"port"`
-	Port     int    `yaml:"host"`
+	Host     string `yaml:"host"`
+	Port     int    `yaml:"port"`
 	User     string `yaml:"user"`
 	Password string `yaml:"password"`
 	Name     string `yaml:"name"`
@@ -26,17 +27,29 @@ type Config struct {
 	DB     DBConfig     `yaml:"db"`
 }
 
-func Load(path, fmt string) (Config, error) {
-	log.Printf("loading configuration from '%s'\n", path)
-	viper.SetConfigFile(path)
-	viper.SetConfigType(fmt)
-	if err := viper.ReadInConfig(); err != nil {
-		return Config{}, err
+func Load(path, format string) (Config, error) {
+	log.Printf("Loading configuration from '%s'\n", path)
+
+	if err := setupViper(path, format); err != nil {
+		return Config{}, fmt.Errorf("failed to setup viper: %w", err)
 	}
+
 	var config Config
 	if err := viper.Unmarshal(&config); err != nil {
-		return Config{}, err
+		return Config{}, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
-	log.Println("configuration loaded successfully")
+
+	log.Println("Configuration loaded successfully")
 	return config, nil
+}
+
+func setupViper(path, format string) error {
+	viper.SetConfigFile(path)
+	viper.SetConfigType(format)
+
+	if err := viper.ReadInConfig(); err != nil {
+		return err
+	}
+
+	return nil
 }

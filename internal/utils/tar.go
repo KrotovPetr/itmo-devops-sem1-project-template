@@ -1,4 +1,5 @@
 package utils
+
 import (
 	"archive/tar"
 	"bytes"
@@ -6,12 +7,18 @@ import (
 	"io"
 	"path/filepath"
 )
+
 func UntarFile(r io.Reader) (io.ReadCloser, error) {
 	data, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}
+
 	tarReader := tar.NewReader(bytes.NewReader(data))
+	return findCSVInTar(tarReader)
+}
+
+func findCSVInTar(tarReader *tar.Reader) (io.ReadCloser, error) {
 	for {
 		header, err := tarReader.Next()
 		if err == io.EOF {
@@ -20,10 +27,14 @@ func UntarFile(r io.Reader) (io.ReadCloser, error) {
 		if err != nil {
 			return nil, err
 		}
-		if filepath.Ext(header.Name) != ".csv" || filepath.Base(header.Name)[0] == '.' {
-			continue
+		if isCSVFile(header.Name) && !isHiddenFile(header.Name) {
+			return io.NopCloser(tarReader), nil
 		}
-		return io.NopCloser(tarReader), nil
 	}
-	return nil, errors.New("file not found")
+	return nil, errors.New("CSV file not found in the archive")
+}
+
+func isHiddenFile(fileName string) bool {
+	base := filepath.Base(fileName)
+	return len(base) > 0 && base[0] == '.'
 }
