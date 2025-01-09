@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"encoding/json"
+	"io"
 	"log"
 	"math"
 	"net/http"
@@ -10,8 +12,6 @@ import (
 	"project_sem/internal/utils"
 	"strconv"
 	"time"
-	"encoding/json"
-	"io"
 )
 
 type PriceStats struct {
@@ -22,135 +22,166 @@ type PriceStats struct {
 	TotalPrice      int `json:"total_price"`
 }
 
-func GetPrices(repo *db.Repository) http.HandlerFunc {
-	const errorResponseBody = "failed to load prices"
-	const successContentType = "application/zip"
-	const sucessContentDisposition = "attachment; filename=data.zip"
-	const csvFileName = "data.csv"
-	return func(w http.ResponseWriter, r *http.Request) {
-		params, err := buildFilterParams(r)
-		if err != nil {
-			log.Printf("failed to build filter params: %v\n", err)
-			http.Error(w, errorResponseBody, http.StatusBadRequest)
-			return
-		}
-		prices, err := repo.GetPrices(params)
-		if err != nil {
-			log.Printf("failed to load prices: %v\n", err)
-			http.Error(w, errorResponseBody, http.StatusInternalServerError)
-			return
-		}
-		serializedPrices, err := serializers.SerializePrices(prices)
-		if err != nil {
-			log.Printf("failed to serialize prices: %v\n", err)
-			http.Error(w, errorResponseBody, http.StatusInternalServerError)
-			return
-		}
-		err = utils.ZipFile(serializedPrices, w, csvFileName)
-		if err != nil {
-			log.Printf("failed to archive prices: %v\n", err)
-			http.Error(w, errorResponseBody, http.StatusInternalServerError)
-			return
-		}
-		w.Header().Set("Content-Type", successContentType)
-		w.Header().Set("Content-Disposition", sucessContentDisposition)
+func handleError(w http.ResponseWriter, err error, logMsg string, httpStatus int) bool {
+	if err != nil {
+		log.Printf("%s: %v\n", logMsg, err)
+		http.Error(w, ErrorResponseBody, httpStatus)
+		return true
 	}
+	return false
 }
+
+func logErrorAndRespond(w http.ResponseWriter, logMsg string, err error, responseBody string) {
+	log.Printf("%s: %v\n", logMsg, err)
+	http.Error(w, responseBody, http.StatusInternalServerError)
+}
+
+func parseDateParam(param string, defaultValue time.Time) (time.Time, error) {
+	if param == "" {
+		return defaultValue, nil
+	}
+	parsedDate, err := time.Parse(constants.DateFormat, param)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return parsedDate, nil
+}
+
+func parsePriceParam(param string, defaultValue float64) (float64, error) {
+	if param == "" {
+		return defaultValue, nil
+	}
+	parsedPrice, err := strconv.ParseFloat(param, 64)
+	if err != nil {
+		return 0, err
+	}
+	return parsedPrice, nil
+}
+
 func buildFilterParams(r *http.Request) (db.FilterParams, error) {
 	params := db.FilterParams{}
-	minCreateDate := r.URL.Query().Get("start")
-	if minCreateDate != "" {
-		minDate, err := time.Parse(constants.DateFormat, minCreateDate)
-		if err != nil {
-			return params, err
-		}
-		params.MinCreateDate = minDate
-	} else {
-		params.MinCreateDate = time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	minCreateDate, err := parseDateParam(r.URL.Query().Get("start"), time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		return params, err
 	}
-	maxCreateDate := r.URL.Query().Get("end")
-	if maxCreateDate != "" {
-		maxDate, err := time.Parse(constants.DateFormat, maxCreateDate)
-		if err != nil {
-			return params, err
-		}
-		params.MaxCreateDate = maxDate
-	} else {
-		params.MaxCreateDate = time.Now()
+	params.MinCreateDate = minCreateDate
+
+	maxCreateDate, err := parseDateParam(r.URL.Query().Get("end"), time.Now())
+	if err != nil {
+		return params, err
 	}
-	minPrice := r.URL.Query().Get("min")
-	if minPrice != "" {
-		price, err := strconv.ParseFloat(minPrice, 64)
-		if err != nil {
-			return params, err
-		}
-		params.MinPrice = price
+	params.MaxCreateDate = maxCreateDate
+
+	minPrice, err := parsePriceParam(r.URL.Query().Get("min"), 0)
+	if err != nil {
+		return params, err
 	}
-	maxPrice := r.URL.Query().Get("max")
-	if maxPrice != "" {
-		price, err := strconv.ParseFloat(maxPrice, 64)
-		if err != nil {
-			return params, err
-		}
-		params.MaxPrice = price
-	} else {
-		params.MaxPrice = math.MaxFloat64
+	params.MinPrice = minPrice
+
+	maxPrice, err := parsePriceParam(r.URL.Query().Get("max"), math.MaxFloat64)
+	if err != nil {
+		return params, err
 	}
+	params.MaxPrice = maxPrice
+
 	return params, nil
+}
+
+func GetPrices(repo *db.Repository) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		params, err := buildFilterParams(r)
+		if handleError(w, err, "Error tobuild filter params", http.StatusBadRequest) {
+			return
+		}
+
+		prices, err := repo.GetPrices(params)
+		if handleError(w, err, "Error to load prices", http.StatusInternalServerError) {
+			return
+		}
+
+		serializedPrices, err := serializers.SerializePrices(prices)
+		if handleError(w, err, "Error to serialize prices", http.StatusInternalServerError) {
+			return
+		}
+
+		err = utils.ZipFile(serializedPrices, w, CSVFileName)
+		if handleError(w, err, "Error to archive prices", http.StatusInternalServerError) {
+			return
+		}
+
+		w.Header().Set("Content-Type", SuccessContentType)
+		w.Header().Set("Content-Disposition", SuccessContentDisposition)
+	}
 }
 
 func CreatePrices(repo *db.Repository) http.HandlerFunc {
 	const errorResponseBody = "failed to upload prices"
 	const successContentType = "application/json"
+
 	return func(w http.ResponseWriter, r *http.Request) {
-		file, _, err := r.FormFile("file")
+		file, err := getFileFromRequest(r)
 		if err != nil {
-			log.Printf("failed to read incoming file: %v\n", err)
-			http.Error(w, errorResponseBody, http.StatusInternalServerError)
+			logErrorAndRespond(w, "failed to read incoming file", err, errorResponseBody)
 			return
 		}
 		defer file.Close()
+
 		formatType := r.URL.Query().Get("type")
 		rc, err := unarchiveFile(file, formatType)
 		if err != nil {
-			log.Printf("failed to unarchive incoming file: %v\n", err)
-			http.Error(w, errorResponseBody, http.StatusInternalServerError)
+			logErrorAndRespond(w, "failed to unarchive incoming file", err, errorResponseBody)
 			return
 		}
 		defer rc.Close()
-		stats := PriceStats{}
-		prices, totalCount, err := serializers.DeserializePrices(rc)
+
+		stats, err := processPrices(rc, repo)
 		if err != nil {
-			log.Printf("failed to parse prices from incoming file: %v\n", err)
-			http.Error(w, errorResponseBody, http.StatusInternalServerError)
+			logErrorAndRespond(w, "failed to process prices", err, errorResponseBody)
 			return
 		}
-		stats.TotalCount = totalCount
-		for _, price := range prices {
-			err = repo.CreatePrice(price)
-			if err != nil {
-				stats.DuplicateCount++
-			} else {
-				stats.TotalItems++
-			}
-		}
-		totalPrice, totalCategories, err := repo.GetTotalPriceAndUniqueCategories()
-		if err != nil {
-			log.Printf("failed to get total price and unique categories: %v\n", err)
-			http.Error(w, errorResponseBody, http.StatusInternalServerError)
-			return
-		}
-		stats.TotalCategories = totalCategories
-		stats.TotalPrice = int(totalPrice)
+
 		w.Header().Set("Content-Type", successContentType)
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(stats)
 	}
 }
+
+func getFileFromRequest(r *http.Request) (io.ReadCloser, error) {
+	file, _, err := r.FormFile("file")
+	return file, err
+}
+
+func processPrices(rc io.ReadCloser, repo *db.Repository) (PriceStats, error) {
+	stats := PriceStats{}
+
+	prices, totalCount, err := serializers.DeserializePrices(rc)
+	if err != nil {
+		return stats, err
+	}
+	stats.TotalCount = totalCount
+
+	for _, price := range prices {
+		if err := repo.CreatePrice(price); err != nil {
+			stats.DuplicateCount++
+		} else {
+			stats.TotalItems++
+		}
+	}
+
+	totalPrice, totalCategories, err := repo.GetTotalPriceAndUniqueCategories()
+	if err != nil {
+		return stats, err
+	}
+	stats.TotalCategories = totalCategories
+	stats.TotalPrice = int(totalPrice)
+
+	return stats, nil
+}
+
 func unarchiveFile(r io.Reader, fileType string) (io.ReadCloser, error) {
 	if fileType == "tar" {
 		return utils.UntarFile(r)
 	}
-	
 	return utils.UnzipFile(r)
 }
