@@ -1,6 +1,8 @@
 package db
+
 import (
 	"fmt"
+	"project_sem/internal/constants"
 	"time"
 )
 
@@ -21,7 +23,7 @@ type FilterParams struct {
 
 func (r *Repository) GetPrices(params FilterParams) ([]Price, error) {
 	prices := make([]Price, 0)
-	statement := fmt.Sprintf("SELECT * FROM prices WHERE price >= %f AND price <= %f AND create_date BETWEEN '%s' AND '%s'", params.MinPrice, params.MaxPrice, params.MinCreateDate.Format("2006-01-02"), params.MaxCreateDate.Format("2006-01-02"))
+	statement := fmt.Sprintf("SELECT * FROM prices WHERE price >= %f AND price <= %f AND create_date BETWEEN '%s' AND '%s'", params.MinPrice, params.MaxPrice, params.MinCreateDate.Format(constants.DateFormat), params.MaxCreateDate.Format(constants.DateFormat))
 	rows, err := r.db.Query(statement)
 	if err != nil {
 		return nil, err
@@ -38,7 +40,7 @@ func (r *Repository) GetPrices(params FilterParams) ([]Price, error) {
 }
 
 func (r *Repository) CreatePrice(price Price) error {
-	statement := fmt.Sprintf("INSERT INTO prices (id, name, category, price, create_date) VALUES (%d, '%s', '%s', %f, '%s')", price.ID, price.Name, price.Category, price.Price, price.CreateDate.Format("2006-01-02"))
+	statement := fmt.Sprintf("INSERT INTO prices (id, name, category, price, create_date) VALUES (%d, '%s', '%s', %f, '%s')", price.ID, price.Name, price.Category, price.Price, price.CreateDate.Format(constants.DateFormat))
 	_, err := r.db.Exec(statement)
 	if err != nil {
 		return err

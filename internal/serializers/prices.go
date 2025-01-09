@@ -1,13 +1,15 @@
 package serializers
+
 import (
 	"bytes"
 	"encoding/csv"
 	"fmt"
 	"io"
 	"log"
+	"project_sem/internal/constants"
+	"project_sem/internal/db"
 	"strconv"
 	"time"
-	"project_sem/internal/db"
 )
 func SerializePrices(prices []db.Price) (*bytes.Buffer, error) {
 	var buffer bytes.Buffer
@@ -20,7 +22,7 @@ func SerializePrices(prices []db.Price) (*bytes.Buffer, error) {
 			price.Name,
 			price.Category,
 			fmt.Sprintf("%.2f", price.Price),
-			price.CreateDate.Format("2006-01-02"),
+			price.CreateDate.Format(constants.DateFormat),
 		}
 		err := csvWriter.Write(record)
 		if err != nil {
@@ -70,7 +72,7 @@ func validatePrice(record []string) (db.Price, error) {
 	if err != nil {
 		return db.Price{}, fmt.Errorf("failed to convert cost to float %v", err)
 	}
-	create_date, err := time.Parse("2006-01-02", record[4])
+	create_date, err := time.Parse(constants.DateFormat, record[4])
 	if err != nil {
 		return db.Price{}, fmt.Errorf("failed to convert creation date %v", err)
 	}

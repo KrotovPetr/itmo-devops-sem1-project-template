@@ -26,5 +26,5 @@ func UnzipFile(r io.Reader) (io.ReadCloser, error) {
 		}
 		return rc, nil
 	}
-	return nil, errors.New("file not found in the zi[] archive")
+	return nil, errors.New("file not found")
 }

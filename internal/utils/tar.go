@@ -25,5 +25,5 @@ func UntarFile(r io.Reader) (io.ReadCloser, error) {
 		}
 		return io.NopCloser(tarReader), nil
 	}
-	return nil, errors.New("file not found in the tar archive")
+	return nil, errors.New("file not found")
 }

@@ -7,8 +7,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-const DateFormat = "2006-01-02"
-
 type ServerConfig struct {
 	Port         int           `yaml:"port"`
 	ReadTimeout  time.Duration `yaml:"read-timeout"`
