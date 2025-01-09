@@ -21,7 +21,7 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
-if lsof -i:$PORT &>/dev/null; then
+if lsof -i:$DB_PORT &>/dev/null; then
   echo -e "${RED}Port $DB_PORT is already in use. Please free the port before proceeding.${NC}"
   exit 1
 fi
@@ -36,7 +36,7 @@ if [[ "$(docker ps -a -q -f name=$CONTAINER_NAME)" != "" ]]; then
 fi
 
 echo -e "${YELLOW}Starting Docker container...${NC}"
-docker run --name $CONTAINER_NAME -p $PORT:5432 -d $IMAGE_NAME
+docker run --name $CONTAINER_NAME -p $DB_PORT:5432 -d $IMAGE_NAME
 if [ $? -ne 0 ]; then
   echo -e "${RED}Error starting Docker container${NC}"
   exit 1
