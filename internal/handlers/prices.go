@@ -6,12 +6,14 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"project_sem/internal/archive"
 	"project_sem/internal/constants"
 	"project_sem/internal/db"
 	"project_sem/internal/serializers"
-	"project_sem/internal/utils"
 	"strconv"
 	"time"
+
+	"github.com/lib/pq"
 )
 
 type PriceStats struct {
@@ -105,7 +107,7 @@ func GetPrices(repo *db.Repository) http.HandlerFunc {
 			return
 		}
 
-		err = utils.ZipFile(serializedPrices, w, CSVFileName)
+		err = archive.ZipFile(serializedPrices, w, CSVFileName)
 		if handleError(w, err, "Error to archive prices", http.StatusInternalServerError) {
 			return
 		}
@@ -135,11 +137,52 @@ func CreatePrices(repo *db.Repository) http.HandlerFunc {
 		}
 		defer rc.Close()
 
-		stats, err := processPrices(rc, repo)
+		stats := PriceStats{}
+		prices, totalCount, err := serializers.DeserializePrices(rc)
 		if err != nil {
-			logErrorAndRespond(w, "failed to process prices", err, errorResponseBody)
+			logErrorAndRespond(w, "failed to deserialize prices", err, errorResponseBody)
 			return
 		}
+		stats.TotalCount = totalCount
+
+		transaction, err := repo.Begin()
+		if err != nil {
+			logErrorAndRespond(w, "failed to begin transaction", err, errorResponseBody)
+			return
+		}
+		defer transaction.Rollback()
+
+		for _, product := range prices {
+			err = repo.CreatePrice(product)
+			if err == nil {
+				stats.TotalItems++
+				continue
+			} else {
+				if pqErr, ok := err.(*pq.Error); ok {
+					if pqErr.Code == pq.ErrorCode(duplicateErrorCode) {
+						stats.DuplicateCount++
+						continue
+					}
+				}
+			}
+
+			logErrorAndRespond(w, "failed to save product", err, errorResponseBody)
+			return
+		}
+
+		err = transaction.Commit()
+		if err != nil {
+			logErrorAndRespond(w, "failed to commit transaction", err, errorResponseBody)
+			return
+		}
+
+		totalPrice, totalCategories, err := repo.GetTotalPriceAndUniqueCategories()
+		if err != nil {
+			logErrorAndRespond(w, "failed to get total price and unique categories", err, errorResponseBody)
+			return
+		}
+		stats.TotalCategories = totalCategories
+		stats.TotalPrice = int(totalPrice)
 
 		w.Header().Set("Content-Type", successContentType)
 		w.WriteHeader(http.StatusCreated)
@@ -152,36 +195,9 @@ func getFileFromRequest(r *http.Request) (io.ReadCloser, error) {
 	return file, err
 }
 
-func processPrices(rc io.ReadCloser, repo *db.Repository) (PriceStats, error) {
-	stats := PriceStats{}
-
-	prices, totalCount, err := serializers.DeserializePrices(rc)
-	if err != nil {
-		return stats, err
-	}
-	stats.TotalCount = totalCount
-
-	for _, price := range prices {
-		if err := repo.CreatePrice(price); err != nil {
-			stats.DuplicateCount++
-		} else {
-			stats.TotalItems++
-		}
-	}
-
-	totalPrice, totalCategories, err := repo.GetTotalPriceAndUniqueCategories()
-	if err != nil {
-		return stats, err
-	}
-	stats.TotalCategories = totalCategories
-	stats.TotalPrice = int(totalPrice)
-
-	return stats, nil
-}
-
 func unarchiveFile(r io.Reader, fileType string) (io.ReadCloser, error) {
 	if fileType == "tar" {
-		return utils.UntarFile(r)
+		return archive.UntarFile(r)
 	}
-	return utils.UnzipFile(r)
+	return archive.UnzipFile(r)
 }

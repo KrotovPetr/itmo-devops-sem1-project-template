@@ -6,13 +6,6 @@ chmod +x scripts/docker.sh
 chmod +x scripts/prepare.sh
 chmod +x scripts/run.sh
 
-echo "Starting docker.sh..."
-./scripts/docker.sh
-if [ $? -ne 0 ]; then
-  echo -e "${RED}Docker setup failed${NC}"
-  exit 1
-fi
-
 echo "Starting prepare.sh..."
 ./scripts/prepare.sh
 

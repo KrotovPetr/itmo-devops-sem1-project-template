@@ -23,24 +23,36 @@ type FilterParams struct {
 
 func (r *Repository) GetPrices(params FilterParams) ([]Price, error) {
 	prices := make([]Price, 0)
-	statement := fmt.Sprintf("SELECT * FROM prices WHERE price >= %f AND price <= %f AND create_date BETWEEN '%s' AND '%s'", params.MinPrice, params.MaxPrice, params.MinCreateDate.Format(constants.DateFormat), params.MaxCreateDate.Format(constants.DateFormat))
+	statement := fmt.Sprintf(
+		"SELECT id, name, category, price, create_date FROM prices WHERE price >= %f AND price <= %f AND create_date BETWEEN '%s' AND '%s'",
+		params.MinPrice, params.MaxPrice, params.MinCreateDate.Format(constants.DateFormat), params.MaxCreateDate.Format(constants.DateFormat),
+	)
 	rows, err := r.db.Query(statement)
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		var price Price
-		err = rows.Scan(&price.ID, &price.Name, &price.Category, &price.Price, &price.CreateDate)
-		if err != nil {
+		if err = rows.Scan(&price.ID, &price.Name, &price.Category, &price.Price, &price.CreateDate); err != nil {
 			return nil, err
 		}
 		prices = append(prices, price)
 	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
 	return prices, nil
 }
 
 func (r *Repository) CreatePrice(price Price) error {
-	statement := fmt.Sprintf("INSERT INTO prices (id, name, category, price, create_date) VALUES (%d, '%s', '%s', %f, '%s')", price.ID, price.Name, price.Category, price.Price, price.CreateDate.Format(constants.DateFormat))
+	statement := fmt.Sprintf(
+		"INSERT INTO prices (name, category, price, create_date) VALUES ('%s', '%s', %f, '%s')",
+		price.Name, price.Category, price.Price, price.CreateDate.Format(constants.DateFormat),
+	)
 	_, err := r.db.Exec(statement)
 	if err != nil {
 		return err

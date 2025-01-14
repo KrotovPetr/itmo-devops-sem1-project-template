@@ -1,38 +1,56 @@
 package db
 
 import (
-	"database/sql"
-	"fmt"
-	"log"
-	"project_sem/internal/config"
+    "database/sql"
+    "fmt"
+    "log"
+    "project_sem/internal/config"
 
-	_ "github.com/lib/pq"
+    _ "github.com/lib/pq"
 )
 
 type Repository struct {
-	db *sql.DB
+    db *sql.DB
 }
 
 func NewRepository(cfg config.DBConfig) (*Repository, error) {
-	log.Println("Connecting to database...")
+    log.Println("Connecting to database...")
 
-	connStr := buildConnectionString(cfg)
-	db, err := sql.Open("postgres", connStr)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open database: %w", err)
-	}
+    connStr := buildConnectionString(cfg)
+    db, err := sql.Open("postgres", connStr)
+    if err != nil {
+        return nil, fmt.Errorf("failed to open database: %w", err)
+    }
 
-	if err := db.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping database: %w", err)
-	}
+    if err := db.Ping(); err != nil {
+        return nil, fmt.Errorf("failed to ping database: %w", err)
+    }
 
-	log.Printf("Successfully connected to database '%s'\n", cfg.Name)
-	return &Repository{db: db}, nil
+    log.Printf("Successfully connected to database '%s'\n", cfg.Name)
+    return &Repository{db: db}, nil
+}
+
+func (r *Repository) Close() error {
+    if r.db != nil {
+        return r.db.Close()
+    }
+    return nil
 }
 
 func buildConnectionString(cfg config.DBConfig) string {
-	return fmt.Sprintf(
-		"host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
-		cfg.Host, cfg.Port, cfg.User, cfg.Password, cfg.Name,
-	)
+    return fmt.Sprintf(
+        "host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
+        cfg.Host, cfg.Port, cfg.User, cfg.Password, cfg.Name,
+    )
+}
+
+
+type Transactioner interface {
+	Commit() error
+	Rollback() error
+}
+
+
+func (r *Repository) Begin() (Transactioner, error) {
+	return r.db.Begin()
 }

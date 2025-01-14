@@ -1,10 +1,11 @@
-package utils
+package archive
 
 import (
 	"archive/zip"
 	"bytes"
 	"errors"
 	"io"
+	"path/filepath"
 )
 
 func UnzipFile(r io.Reader) (io.ReadCloser, error) {
@@ -23,7 +24,7 @@ func UnzipFile(r io.Reader) (io.ReadCloser, error) {
 
 func findCSVFile(zipReader *zip.Reader) (io.ReadCloser, error) {
 	for _, file := range zipReader.File {
-		if !isCSVFile(file.Name) {
+		if !(filepath.Ext(file.Name) == ".csv") {
 			continue
 		}
 

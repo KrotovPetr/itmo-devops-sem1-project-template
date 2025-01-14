@@ -1,4 +1,4 @@
-package utils
+package archive
 
 import (
 	"archive/tar"
@@ -27,7 +27,7 @@ func findCSVInTar(tarReader *tar.Reader) (io.ReadCloser, error) {
 		if err != nil {
 			return nil, err
 		}
-		if isCSVFile(header.Name) && !isHiddenFile(header.Name) {
+		if filepath.Ext(header.Name) == ".csv" && !isHiddenFile(header.Name) {
 			return io.NopCloser(tarReader), nil
 		}
 	}
