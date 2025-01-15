@@ -2,7 +2,6 @@
 
 source scripts/constants/colors.sh
 
-chmod +x scripts/docker.sh
 chmod +x scripts/prepare.sh
 chmod +x scripts/run.sh
 

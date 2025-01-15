@@ -22,7 +22,7 @@ chmod +x scripts/run.sh
 ./scripts/run.sh
 ```
 
-При её отсутствии
+или
 
 ```
 
@@ -48,3 +48,7 @@ for idx in {1..3}; do ./scripts/tests.sh $idx; done
 К кому можно обращаться в случае вопросов?
 
 tg @peter40127 или по контактам, указанным в Github
+
+https://github.com/KrotovPetr
+
+Задание на уровень 2

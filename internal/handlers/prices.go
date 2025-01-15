@@ -13,7 +13,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/lib/pq"
 )
 
 type PriceStats struct {
@@ -157,15 +156,7 @@ func CreatePrices(repo *db.Repository) http.HandlerFunc {
 			if err == nil {
 				stats.TotalItems++
 				continue
-			} else {
-				if pqErr, ok := err.(*pq.Error); ok {
-					if pqErr.Code == pq.ErrorCode(duplicateErrorCode) {
-						stats.DuplicateCount++
-						continue
-					}
-				}
 			}
-
 			logErrorAndRespond(w, "failed to save product", err, errorResponseBody)
 			return
 		}

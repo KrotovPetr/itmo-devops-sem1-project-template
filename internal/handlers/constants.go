@@ -6,7 +6,3 @@ const (
 	SuccessContentDisposition = "attachment; filename=data.zip"
 	CSVFileName               = "data.csv"
 )
-
-const (
-	duplicateErrorCode = "23505"
-)
