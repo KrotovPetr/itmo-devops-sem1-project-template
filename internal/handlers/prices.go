@@ -12,12 +12,10 @@ import (
 	"project_sem/internal/serializers"
 	"strconv"
 	"time"
-
 )
 
 type PriceStats struct {
 	TotalCount      int `json:"total_count"`
-	DuplicateCount  int `json:"duplicates_count"`
 	TotalItems      int `json:"total_items"`
 	TotalCategories int `json:"total_categories"`
 	TotalPrice      int `json:"total_price"`
@@ -117,13 +115,11 @@ func GetPrices(repo *db.Repository) http.HandlerFunc {
 }
 
 func CreatePrices(repo *db.Repository) http.HandlerFunc {
-	const errorResponseBody = "failed to upload prices"
-	const successContentType = "application/json"
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		file, err := getFileFromRequest(r)
 		if err != nil {
-			logErrorAndRespond(w, "failed to read incoming file", err, errorResponseBody)
+			logErrorAndRespond(w, "failed to read incoming file", err, ErrorResponseBody)
 			return
 		}
 		defer file.Close()
@@ -131,7 +127,7 @@ func CreatePrices(repo *db.Repository) http.HandlerFunc {
 		formatType := r.URL.Query().Get("type")
 		rc, err := unarchiveFile(file, formatType)
 		if err != nil {
-			logErrorAndRespond(w, "failed to unarchive incoming file", err, errorResponseBody)
+			logErrorAndRespond(w, "failed to unarchive incoming file", err, ErrorResponseBody)
 			return
 		}
 		defer rc.Close()
@@ -139,17 +135,17 @@ func CreatePrices(repo *db.Repository) http.HandlerFunc {
 		stats := PriceStats{}
 		prices, totalCount, err := serializers.DeserializePrices(rc)
 		if err != nil {
-			logErrorAndRespond(w, "failed to deserialize prices", err, errorResponseBody)
+			logErrorAndRespond(w, "failed to deserialize prices", err, ErrorResponseBody)
 			return
 		}
 		stats.TotalCount = totalCount
 
 		transaction, err := repo.Begin()
 		if err != nil {
-			logErrorAndRespond(w, "failed to begin transaction", err, errorResponseBody)
+			logErrorAndRespond(w, "failed to begin transaction", err, ErrorResponseBody)
 			return
 		}
-		defer transaction.Rollback()
+		
 
 		for _, product := range prices {
 			err = repo.CreatePrice(product)
@@ -157,25 +153,27 @@ func CreatePrices(repo *db.Repository) http.HandlerFunc {
 				stats.TotalItems++
 				continue
 			}
-			logErrorAndRespond(w, "failed to save product", err, errorResponseBody)
+
+			defer transaction.Rollback()
+			logErrorAndRespond(w, "failed to save product", err, ErrorResponseBody)
+			return
+		}
+		totalPrice, totalCategories, err := repo.GetTotalPriceAndUniqueCategories()
+		stats.TotalCategories = totalCategories
+		stats.TotalPrice = int(totalPrice)
+
+		if err != nil {
+			logErrorAndRespond(w, "failed to get total price and unique categories", err, ErrorResponseBody)
 			return
 		}
 
 		err = transaction.Commit()
 		if err != nil {
-			logErrorAndRespond(w, "failed to commit transaction", err, errorResponseBody)
+			logErrorAndRespond(w, "failed to commit transaction", err, ErrorResponseBody)
 			return
 		}
 
-		totalPrice, totalCategories, err := repo.GetTotalPriceAndUniqueCategories()
-		if err != nil {
-			logErrorAndRespond(w, "failed to get total price and unique categories", err, errorResponseBody)
-			return
-		}
-		stats.TotalCategories = totalCategories
-		stats.TotalPrice = int(totalPrice)
-
-		w.Header().Set("Content-Type", successContentType)
+		w.Header().Set("Content-Type", SuccessContentType)
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(stats)
 	}
